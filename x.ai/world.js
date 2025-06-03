@@ -1,0 +1,149 @@
+import * as THREE from 'three';
+
+// Scene, Camera, Renderer
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Sky (Simple Background Color)
+renderer.setClearColor(0x87CEEB); // Sky Blue
+
+// Ground (Plane)
+const groundGeometry = new THREE.PlaneGeometry(50, 50, 1, 1);
+const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x228B22, side: THREE.DoubleSide }); // Forest Green
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = Math.PI / 2; // Rotate to be horizontal
+scene.add(ground);
+
+// Camera Position
+camera.position.set(0, 2, 5); // Slightly above ground
+camera.lookAt(0, 0, 0); // Look at the origin
+
+// Movement controls
+let moveForward = false;
+let moveBackward = false;
+let moveLeft = false;
+let moveRight = false;
+let isJumping = false;
+let velocityY = 0;
+const gravity = 0.01;
+const jumpSpeed = 0.3;
+const moveSpeed = 0.1;
+let yaw = 0;
+
+// Lock the cursor
+document.addEventListener('click', function () {
+    document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock || document.body.webkitRequestPointerLock;
+    document.body.requestPointerLock();
+}, false);
+
+function onPointerLockChange() {
+    if (document.pointerLockElement === document.body || document.mozPointerLockElement === document.body || document.webkitPointerLockElement === document.body) {
+        document.addEventListener("mousemove", onMouseMove, false);
+    } else {
+        document.removeEventListener("mousemove", onMouseMove, false);
+    }
+}
+
+document.addEventListener('pointerlockchange', onPointerLockChange, false);
+document.addEventListener('mozpointerlockchange', onPointerLockChange, false);
+document.addEventListener('webkitpointerlockchange', onPointerLockChange, false);
+
+
+function onMouseMove(event) {
+    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+
+    yaw -= movementX * 0.002;
+
+    camera.rotation.y = yaw;
+}
+
+document.addEventListener('keydown', (event) => {
+    switch (event.code) {
+        case 'KeyW':
+            moveForward = true;
+            break;
+        case 'KeyS':
+            moveBackward = true;
+            break;
+        case 'KeyA':
+            moveLeft = true;
+            break;
+        case 'KeyD':
+            moveRight = true;
+            break;
+        case 'Space':
+            if (!isJumping) {
+                velocityY = jumpSpeed;
+                isJumping = true;
+            }
+            break;
+    }
+});
+
+document.addEventListener('keyup', (event) => {
+    switch (event.code) {
+        case 'KeyW':
+            moveForward = false;
+            break;
+        case 'KeyS':
+            moveBackward = false;
+            break;
+        case 'KeyA':
+            moveLeft = false;
+            break;
+        case 'KeyD':
+            moveRight = false;
+            break;
+    }
+});
+
+// Animation Loop
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Movement
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+
+    const forwardDirection = direction.clone();
+    forwardDirection.y = 0;
+    forwardDirection.normalize();
+    const sideDirection = new THREE.Vector3();
+    sideDirection.crossVectors(new THREE.Vector3(0, 1, 0), forwardDirection);
+    sideDirection.normalize();
+
+    if (moveForward) {
+        camera.position.addScaledVector(forwardDirection, moveSpeed);
+    }
+    if (moveBackward) {
+        camera.position.addScaledVector(forwardDirection, -moveSpeed);
+    }
+    if (moveLeft) {
+        camera.position.addScaledVector(sideDirection, -moveSpeed);
+    }
+    if (moveRight) {
+        camera.position.addScaledVector(sideDirection, moveSpeed);
+    }
+
+
+    // Jumping and Gravity
+    if (isJumping) {
+        velocityY -= gravity;
+        camera.position.y += velocityY;
+
+        if (camera.position.y <= 2) { // Ground level (adjust as needed)
+            camera.position.y = 2;
+            velocityY = 0;
+            isJumping = false;
+        }
+    }
+
+
+
+    renderer.render(scene, camera);
+}
+
+animate();
